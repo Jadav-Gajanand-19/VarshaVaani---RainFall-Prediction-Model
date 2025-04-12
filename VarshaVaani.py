@@ -1,113 +1,97 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
-import requests
-import joblib
-import wikipedia
 import plotly.express as px
-from io import StringIO
-from datetime import datetime
+from streamlit.components.v1 import html
 
-# Load data and model
+# Load dataset
 df = pd.read_csv("District_Rainfall_Normal_0.csv")
-model = joblib.load("Rainfall_Prediction_model.pkl")
+df.columns = df.columns.str.strip().str.upper()
 
-# App Configuration
-st.set_page_config(page_title="🌧️ VarshVaani - Rainfall Intelligence Dashboard", layout="wide")
-st.title("🌧️ VarshVaani - Rainfall Prediction & Analysis App")
+# UI Setup
+st.set_page_config(page_title="🌧️ VarshVaani - Rainfall Intelligence", layout="wide")
+st.markdown("""
+    <style>
+        .main {
+            background: linear-gradient(to right, #c9d6ff, #e2e2e2);
+            font-family: 'Segoe UI', sans-serif;
+        }
+        .block-container {
+            padding: 2rem 2rem 2rem 2rem;
+        }
+    </style>
+""", unsafe_allow_html=True)
 
-# Sidebar - Region Selector
-st.sidebar.header("🌍 Region Selection")
-state_district_map = df.groupby("STATE/UT")["DISTRICT"].unique().to_dict()
-state = st.sidebar.selectbox("Select State", sorted(state_district_map.keys()))
-district = st.sidebar.selectbox("Select District", sorted(state_district_map[state]))
+st.title("🌧️ VarshVaani - Rainfall Intelligence Dashboard")
+st.markdown("### Predict historical monthly rainfall trends by location")
 
-# Sidebar - Optional Weather API Key
-st.sidebar.header("☁️ Weather API")
-weather_api_key = st.sidebar.text_input("Enter OpenWeatherMap API Key", type="password")
+# Sidebar Filters
+st.sidebar.header("🗺️ Select Location")
+states = sorted(df["STATE_UT_NAME"].unique())
+selected_state = st.sidebar.selectbox("Select State", states)
+districts = sorted(df[df["STATE_UT_NAME"] == selected_state]["DISTRICT"].unique())
+selected_district = st.sidebar.selectbox("Select District", districts)
 
-# Location Display
-st.subheader(f"📍 {district}, {state}")
-st.image(f"https://source.unsplash.com/800x400/?{state},india", caption=f"Scenery from {state}", use_column_width=True)
+# Filter Data
+filtered = df[(df["STATE_UT_NAME"] == selected_state) & (df["DISTRICT"] == selected_district)]
 
-try:
-    summary = wikipedia.summary(f"{district}, {state}, India", sentences=2)
-    st.info(summary)
-except:
-    st.warning("ℹ️ Wikipedia summary not found.")
+st.subheader(f"📍 Rainfall Data for {selected_district}, {selected_state}")
 
-# Weather Section
-if weather_api_key:
-    weather_url = f"https://api.openweathermap.org/data/2.5/weather?q={district},{state},IN&appid={weather_api_key}&units=metric"
-    try:
-        res = requests.get(weather_url).json()
-        if res.get("cod") == 200 and res.get("main"):
-            temp = res["main"]["temp"]
-            desc = res["weather"][0]["description"]
-            st.metric("🌡️ Current Temperature", f"{temp} °C")
-            st.write(f"Condition: **{desc.title()}**")
-        else:
-            st.warning("Weather information currently unavailable.")
-    except:
-        st.warning("Failed to fetch weather data.")
+# Unsplash Main Image
+img_url = f"https://source.unsplash.com/800x400/?rain,{selected_district},india"
+st.image(img_url, caption=f"{selected_district}, {selected_state}", use_column_width=True)
 
-# Monthly Rainfall Input
-st.subheader("📥 Enter Monthly Rainfall (in mm)")
-months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
-seasonal = ["Jan-Feb", "Mar-May", "Jun-Sep", "Oct-Dec"]
+# Carousel for more images
+carousel_html = f"""
+<div id=\"carouselExampleIndicators\" class=\"carousel slide\" data-bs-ride=\"carousel\" style=\"max-width:800px;margin:auto\">
+  <div class=\"carousel-inner\">
+    {"".join([
+        f'<div class=\"carousel-item {"active" if i == 0 else ""}\"><img src=\"https://source.unsplash.com/800x400/?{selected_district},india&sig={i}\" class=\"d-block w-100\" alt=\"...\"></div>'
+        for i in range(1, 6)
+    ])}
+  </div>
+  <button class=\"carousel-control-prev\" type=\"button\" data-bs-target=\"#carouselExampleIndicators\" data-bs-slide=\"prev\">
+    <span class=\"carousel-control-prev-icon\" aria-hidden=\"true\"></span>
+  </button>
+  <button class=\"carousel-control-next\" type=\"button\" data-bs-target=\"#carouselExampleIndicators\" data-bs-slide=\"next\">
+    <span class=\"carousel-control-next-icon\" aria-hidden=\"true\"></span>
+  </button>
+</div>
 
-monthly_inputs = {}
-cols = st.columns(4)
-for i, month in enumerate(months):
-    with cols[i % 4]:
-        monthly_inputs[month] = st.number_input(f"{month}", 0.0, 2000.0, 100.0)
+<link href=\"https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css\" rel=\"stylesheet\">
+<script src=\"https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js\"></script>
+"""
 
-# Auto-Fill Seasonal
-if st.button("🔁 Auto-Fill Seasonal Totals"):
-    seasonal_values = {
-        "Jan-Feb": monthly_inputs["JAN"] + monthly_inputs["FEB"],
-        "Mar-May": sum([monthly_inputs[m] for m in ["MAR", "APR", "MAY"]]),
-        "Jun-Sep": sum([monthly_inputs[m] for m in ["JUN", "JUL", "AUG", "SEP"]]),
-        "Oct-Dec": sum([monthly_inputs[m] for m in ["OCT", "NOV", "DEC"]]),
-    }
-    for s in seasonal:
-        st.session_state[s] = seasonal_values[s]
+html(carousel_html, height=450)
 
-season_inputs = {}
-for s in seasonal:
-    season_inputs[s] = st.number_input(f"{s}", 0.0, 4000.0, key=s)
+# Show Monthly Rainfall
+monthly_cols = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
+monthly_values = filtered[monthly_cols].mean().round(2)
 
-# Prediction
-st.subheader("🤖 Predicted Rainfall")
-features = list(monthly_inputs.values()) + list(season_inputs.values())
+rainfall_df = pd.DataFrame({"Month": monthly_cols, "Rainfall (mm)": monthly_values.values})
 
-if all(v >= 0 for v in features):
-    with st.spinner("Predicting..."):
-        prediction = model.predict(np.array(features).reshape(1, -1))[0]
+# Chart
+st.plotly_chart(
+    px.bar(rainfall_df, x="Month", y="Rainfall (mm)", title="📊 Average Monthly Rainfall",
+           color="Rainfall (mm)", color_continuous_scale="Blues"),
+    use_container_width=True
+)
 
-    if prediction < 500:
-        category = "Low"
-    elif prediction < 1500:
-        category = "Moderate"
-    else:
-        category = "Heavy"
+# Total Rainfall Card
+total_rainfall = monthly_values.sum()
+st.metric("🌧️ Average Total Annual Rainfall", f"{total_rainfall:.2f} mm")
 
-    st.success(f"🌧️ Predicted Annual Rainfall: **{prediction:.2f} mm**")
-    st.info(f"Category: **{category} Rainfall**")
+# Trend Over Years (if available)
+year_cols = [col for col in df.columns if col.isdigit()]
+if year_cols:
+    yearwise_data = filtered[year_cols].T
+    yearwise_data.columns = ["Rainfall"]
+    yearwise_data["Year"] = yearwise_data.index.astype(int)
+    yearwise_data = yearwise_data.sort_values("Year")
 
-    # Monthly Bar Chart
-    st.subheader("📊 Monthly Rainfall Distribution")
-    monthly_df = pd.DataFrame({"Month": months, "Rainfall (mm)": list(monthly_inputs.values())})
-    st.plotly_chart(px.bar(monthly_df, x="Month", y="Rainfall (mm)", title="Monthly Rainfall Distribution"))
+    st.subheader("🕰️ Rainfall Trend Over Years")
+    st.line_chart(yearwise_data.set_index("Year"))
 
-    # Seasonal Pie Chart
-    st.subheader("📈 Seasonal Rainfall Composition")
-    season_df = pd.DataFrame({"Season": seasonal, "Rainfall (mm)": list(season_inputs.values())})
-    st.plotly_chart(px.pie(season_df, names="Season", values="Rainfall (mm)", title="Seasonal Rainfall Breakdown"))
+# Footer
+st.markdown("---")
+st.markdown("💡 *Powered by historical data and beautiful weather-inspired design.*")
 
-    # CSV Download
-    csv_data = f"District,State,Prediction_mm,Category\n{district},{state},{prediction:.2f},{category}"
-    if st.download_button("📥 Download Prediction", data=csv_data, file_name="varshvaani_prediction.csv"):
-        st.success("✅ File ready for download")
-else:
-    st.warning("🚫 Please enter valid values for all inputs.")
