@@ -32,7 +32,7 @@ districts = sorted(df[df["STATE/UT"] == selected_state]["DISTRICT"].unique())
 selected_district = st.sidebar.selectbox("Select District", districts)
 
 # Filter Data
-filtered = df[(df["STATE_UT_NAME"] == selected_state) & (df["DISTRICT"] == selected_district)]
+filtered = df[(df["STATE/UT"] == selected_state) & (df["DISTRICT"] == selected_district)]
 
 st.subheader(f"📍 Rainfall Data for {selected_district}, {selected_state}")
 
