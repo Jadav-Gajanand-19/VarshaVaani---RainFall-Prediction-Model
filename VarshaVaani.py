@@ -5,15 +5,14 @@ import requests
 from streamlit.components.v1 import html
 
 # --- SETTINGS ---
-UNSPLASH_ACCESS_KEY = "OyoEvK-mLctgOOHJpHUha2b5y4CGT4f6URf6riXY3W4"  # 🔁 Replace this with your actual key
+PEXELS_API_KEY = "cHLzVW6EUPDn1dI4MQ6PkCPtcEQFtXZve2uYdTmxY9HXy28ZbUToumsp"  # 🔁 Replace this with your actual Pexels API Key
 
-# --- IMAGE FETCHER (Unsplash) ---
-def fetch_unsplash_images(query, access_key, count=5):
-    url = "https://api.unsplash.com/search/photos"
-    headers = {"Accept-Version": "v1"}
+# --- IMAGE FETCHER (Pexels) ---
+def fetch_pexels_images(query, api_key, count=5):
+    url = "https://api.pexels.com/v1/search"
+    headers = {"Authorization": api_key}
     params = {
         "query": query,
-        "client_id": access_key,
         "per_page": count,
         "orientation": "landscape"
     }
@@ -21,9 +20,9 @@ def fetch_unsplash_images(query, access_key, count=5):
         response = requests.get(url, headers=headers, params=params)
         response.raise_for_status()
         data = response.json()
-        return [item["urls"]["regular"] for item in data["results"]]
+        return [photo["src"]["large"] for photo in data.get("photos", [])]
     except Exception as e:
-        st.warning(f"⚠️ Failed to fetch Unsplash images: {e}")
+        st.warning(f"⚠️ Failed to fetch Pexels images: {e}")
         return []
 
 # --- DATA LOAD ---
@@ -59,7 +58,7 @@ filtered = df[(df["STATE/UT"] == selected_state) & (df["DISTRICT"] == selected_d
 st.subheader(f"📍 Rainfall Data for {selected_district}, {selected_state}")
 
 # --- IMAGE CAROUSEL ---
-image_urls = fetch_unsplash_images(f"{selected_district} {selected_state} India weather", UNSPLASH_ACCESS_KEY)
+image_urls = fetch_pexels_images(f"{selected_district} {selected_state} India weather", PEXELS_API_KEY)
 
 if image_urls:
     carousel_html = f"""
@@ -99,4 +98,4 @@ st.metric("🌧️ Average Total Annual Rainfall", f"{total_rainfall:.2f} mm")
 
 # --- FOOTER ---
 st.markdown("---")
-st.markdown("💡 *Powered by historical data and beautiful visuals from Unsplash*")
+st.markdown("💡 *Powered by historical data and beautiful visuals from Pexels*")
