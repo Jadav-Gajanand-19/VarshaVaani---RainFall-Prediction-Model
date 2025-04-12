@@ -2,91 +2,70 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import requests
-import plotly.graph_objects as go
 from streamlit.components.v1 import html
+import plotly.graph_objects as go
 
 # --- SETTINGS ---
-PEXELS_API_KEY = "cHLzVW6EUPDn1dI4MQ6PkCPtcEQFtXZve2uYdTmxY9HXy28ZbUToumsp"  # 🔁 Replace this with your actual API key
+PEXELS_API_KEY = "cHLzVW6EUPDn1dI4MQ6PkCPtcEQFtXZve2uYdTmxY9HXy28ZbUToumsp"  # Replace with your actual Pexels API key
 
-# --- IMAGE FETCHER (Pexels) ---
 def fetch_pexels_images(query, api_key, count=5):
-    url = "https://api.pexels.com/v1/search"
     headers = {"Authorization": api_key}
-    params = {"query": query, "per_page": count, "orientation": "landscape"}
-    try:
-        response = requests.get(url, headers=headers, params=params)
-        response.raise_for_status()
-        data = response.json()
-        return [photo["src"]["large"] for photo in data.get("photos", [])]
-    except Exception as e:
-        st.warning(f"⚠️ Failed to fetch Pexels images: {e}")
+    params = {"query": query, "per_page": count}
+    response = requests.get("https://api.pexels.com/v1/search", headers=headers, params=params)
+    if response.status_code == 200:
+        return [photo["src"]["landscape"] for photo in response.json()["photos"]]
+    else:
+        st.warning("⚠️ Failed to fetch images from Pexels")
         return []
 
 # --- DATA LOAD ---
 df = pd.read_csv("District_Rainfall_Normal_0.csv")
 df.columns = df.columns.str.strip().str.upper()
 
-# --- UI CONFIG ---
-st.set_page_config(page_title="\ud83c\udf27\ufe0f VarshVaani - Rainfall Intelligence", layout="wide")
+# --- PAGE CONFIG ---
+st.set_page_config(page_title="🌧️ VarshVaani - Rainfall Intelligence", layout="wide")
 
-# --- STYLING + RAIN ANIMATION + AUDIO ---
+# --- CUSTOM CSS & ANIMATION ---
 st.markdown("""
     <style>
-    html, body, [class*="css"] {
-        font-family: 'Segoe UI', sans-serif;
-        background: linear-gradient(135deg, #74ebd5, #9face6);
-        overflow-x: hidden;
+    body {
+        background: linear-gradient(135deg, #a8edea, #fed6e3);
+        animation: rain 10s linear infinite;
+    }
+    @keyframes rain {
+        0% { background-position: 0 0; }
+        100% { background-position: 1000px 1000px; }
     }
     .block-container {
         padding: 2rem;
-        background-color: rgba(255, 255, 255, 0.85);
-        border-radius: 20px;
-        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
     }
-    .rainfall-card {
-        background: linear-gradient(to right, #43cea2, #185a9d);
-        color: white;
-        padding: 20px;
-        border-radius: 15px;
-        margin-top: 20px;
-        text-align: center;
-        font-size: 1.5rem;
-        font-weight: bold;
-        animation: fadeIn 2s ease-in-out;
-    }
-    .rain {
-        background-image: url('https://i.gifer.com/VAyR.gif');
-        background-size: cover;
-        background-repeat: no-repeat;
+    .rain-animation {
+        background: url('https://i.ibb.co/7yzjLBQ/rain.gif') repeat;
         position: fixed;
         top: 0;
         left: 0;
-        height: 100%;
-        width: 100%;
-        opacity: 0.15;
+        width: 100vw;
+        height: 100vh;
         z-index: -1;
-    }
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
+        opacity: 0.4;
     }
     </style>
-
-    <div class="rain"></div>
-
-    <audio autoplay loop>
-        <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-12.mp3" type="audio/mpeg">
-        Your browser does not support the audio element.
-    </audio>
 """, unsafe_allow_html=True)
 
-# --- TITLE ---
-st.title("\ud83c\udf27\ufe0f VarshVaani")
-st.markdown("<h3 style='color:#0f2027;'>Rainfall Intelligence Dashboard</h3>", unsafe_allow_html=True)
-st.markdown("<h5 style='color:#003f5c;'>Predict historical monthly rainfall trends by location \ud83c\udf0d</h5>", unsafe_allow_html=True)
+# --- BACKGROUND SOUND ---
+html("""
+<audio autoplay loop>
+  <source src="https://www.fesliyanstudios.com/play-mp3/387" type="audio/mp3">
+</audio>
+""", height=0)
+
+st.markdown("<div class='rain-animation'></div>", unsafe_allow_html=True)
+
+st.title("🌧️ VarshVaani - Rainfall Intelligence Dashboard")
+st.markdown("### 📊 Predict historical monthly rainfall trends by location")
 
 # --- LOCATION FILTERS ---
-st.sidebar.header("\ud83c\udf0d Select Location")
+st.sidebar.header("🗺️ Select Location")
 states = sorted(df["STATE/UT"].unique())
 selected_state = st.sidebar.selectbox("Select State", states)
 districts = sorted(df[df["STATE/UT"] == selected_state]["DISTRICT"].unique())
@@ -94,9 +73,9 @@ selected_district = st.sidebar.selectbox("Select District", districts)
 
 filtered = df[(df["STATE/UT"] == selected_state) & (df["DISTRICT"] == selected_district)]
 
-st.subheader(f"\ud83d\udccd Rainfall Data for {selected_district}, {selected_state}")
+st.subheader(f"📍 Rainfall Data for {selected_district}, {selected_state}")
 
-# --- IMAGE CAROUSEL ---
+# --- IMAGE GALLERY ---
 image_urls = fetch_pexels_images(f"{selected_district} {selected_state} India weather", PEXELS_API_KEY)
 
 if image_urls:
@@ -120,49 +99,47 @@ if image_urls:
 else:
     st.image("https://source.unsplash.com/800x400/?rain", caption="Weather View", use_column_width=True)
 
-# --- RAINFALL ANALYSIS ---
+# --- MONTHLY RAINFALL ---
 monthly_cols = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
 monthly_values = filtered[monthly_cols].mean().round(2)
 rainfall_df = pd.DataFrame({"Month": monthly_cols, "Rainfall (mm)": monthly_values.values})
 
-# --- ADDING 3D-LIKE BAR CHART ---
 fig = go.Figure()
 fig.add_trace(go.Bar(
     x=rainfall_df["Month"],
     y=rainfall_df["Rainfall (mm)"],
-    name='Monthly Rainfall',
-    marker_color='lightskyblue',
-    marker_line_color='darkblue',
-    marker_line_width=1.5,
-    opacity=0.8
+    marker=dict(color=rainfall_df["Rainfall (mm)"], colorscale='Viridis'),
+    name='Rainfall',
 ))
-fig.add_trace(go.Scatter(x=rainfall_df["Month"], y=rainfall_df["Rainfall (mm)"],
-                         mode='lines+markers', name='Trend Line',
-                         line=dict(color='darkblue', dash='dot')))
-fig.update_layout(title="\ud83d\udcca Average Monthly Rainfall (with 3D Effect)",
-                  plot_bgcolor='rgba(240,248,255,0.8)',
-                  paper_bgcolor='rgba(255,255,255,0.7)',
-                  margin=dict(l=40, r=20, t=60, b=30))
-
-# --- DOWNLOAD OPTION ---
-st.download_button(
-    label="\ud83d\udcc5 Download Rainfall Graph as PNG",
-    data=fig.to_image(format="png"),
-    file_name=f"{selected_district}_{selected_state}_rainfall.png",
-    mime="image/png"
+fig.add_trace(go.Scatter(
+    x=rainfall_df["Month"],
+    y=rainfall_df["Rainfall (mm)"],
+    mode='lines+markers',
+    line=dict(color='black', dash='dash'),
+    name='Trend'
+))
+fig.update_layout(
+    title="🌈 Average Monthly Rainfall with Trend Line",
+    template="plotly_dark",
+    paper_bgcolor='rgba(0,0,0,0)',
+    plot_bgcolor='rgba(0,0,0,0)',
+    scene=dict(zaxis_title='Rainfall (mm)')
 )
-
-# --- DISPLAY PLOT ---
 st.plotly_chart(fig, use_container_width=True)
 
-# --- TOTAL RAINFALL METRIC ---
+# --- EXPORT OPTION ---
+st.download_button(
+    label="📥 Download Graph Data",
+    data=rainfall_df.to_csv(index=False).encode('utf-8'),
+    file_name="rainfall_data.csv",
+    mime="text/csv"
+)
+
+# --- TOTAL ANNUAL RAINFALL ---
 total_rainfall = monthly_values.sum()
-st.markdown(f"""
-    <div class='rainfall-card'>
-        \ud83c\udf27\ufe0f Average Total Annual Rainfall: {total_rainfall:.2f} mm
-    </div>
-""", unsafe_allow_html=True)
+st.metric("🌧️ Average Total Annual Rainfall", f"{total_rainfall:.2f} mm")
 
 # --- FOOTER ---
 st.markdown("---")
-st.markdown("\ud83d\udca1 *Powered by historical data, beautiful visuals from Pexels, and good vibes from nature \ud83c\udf3f*")
+st.markdown("💡 *Powered by historical data, 3D visuals, and ambient rain from Pexels & open sources*")
+
