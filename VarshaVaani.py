@@ -4,10 +4,12 @@ import plotly.express as px
 import requests
 from streamlit.components.v1 import html
 import plotly.graph_objects as go
+import joblib
 
 # --- SETTINGS ---
-PEXELS_API_KEY = "cHLzVW6EUPDn1dI4MQ6PkCPtcEQFtXZve2uYdTmxY9HXy28ZbUToumsp"  # Replace with your actual Pexels API key
+PEXELS_API_KEY = "cHLzVW6EUPDn1dI4MQ6PkCPtcEQFtXZve2uYdTmxY9HXy28ZbUToumsp"
 
+# --- FETCH PEXELS IMAGES ---
 def fetch_pexels_images(query, api_key, count=5):
     headers = {"Authorization": api_key}
     params = {"query": query, "per_page": count}
@@ -18,14 +20,14 @@ def fetch_pexels_images(query, api_key, count=5):
         st.warning("⚠️ Failed to fetch images from Pexels")
         return []
 
-# --- DATA LOAD ---
+# --- LOAD DATA ---
 df = pd.read_csv("District_Rainfall_Normal_0.csv")
 df.columns = df.columns.str.strip().str.upper()
 
 # --- PAGE CONFIG ---
 st.set_page_config(page_title="🌧️ VarshVaani - Rainfall Intelligence", layout="wide")
 
-# --- CUSTOM CSS & ANIMATION ---
+# --- CUSTOM STYLES & ANIMATIONS ---
 st.markdown("""
     <style>
     body {
@@ -139,7 +141,34 @@ st.download_button(
 total_rainfall = monthly_values.sum()
 st.metric("🌧️ Average Total Annual Rainfall", f"{total_rainfall:.2f} mm")
 
+# --- RAINFALL PREDICTION ---
+st.markdown("## 🔮 Predict Future Rainfall")
+st.markdown("Use the model to predict rainfall for a selected district and month.")
+
+col1, col2, col3 = st.columns(3)
+with col1:
+    pred_state = st.selectbox("State (for prediction)", states)
+with col2:
+    pred_district = st.selectbox("District", sorted(df[df["STATE/UT"] == pred_state]["DISTRICT"].unique()))
+with col3:
+    pred_month = st.selectbox("Month", monthly_cols)
+
+try:
+    model = joblib.load("Rainfall_Prediction_model.pkl")
+except Exception as e:
+    st.error("🚫 Failed to load prediction model. Check file format or re-upload.")
+    st.stop()
+
+if st.button("🔍 Predict Rainfall"):
+    try:
+        input_df = pd.DataFrame([[pred_state, pred_district, pred_month]], columns=["STATE", "DISTRICT", "MONTH"])
+        prediction = model.predict(input_df)[0]
+        st.success(f"🌤️ Predicted Rainfall in **{pred_district}, {pred_state}** for **{pred_month}**: **{prediction:.2f} mm**")
+    except Exception as e:
+        st.error(f"❌ Prediction failed: {e}")
+
 # --- FOOTER ---
 st.markdown("---")
 st.markdown("💡 *Powered by historical data, 3D visuals, and ambient rain from Pexels & open sources*")
+
 
