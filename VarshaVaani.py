@@ -26,9 +26,9 @@ st.markdown("### Predict historical monthly rainfall trends by location")
 
 # Sidebar Filters
 st.sidebar.header("🗺️ Select Location")
-states = sorted(df["STATE_UT_NAME"].unique())
+states = sorted(df["STATE/UT"].unique())
 selected_state = st.sidebar.selectbox("Select State", states)
-districts = sorted(df[df["STATE_UT_NAME"] == selected_state]["DISTRICT"].unique())
+districts = sorted(df[df["STATE/UT"] == selected_state]["DISTRICT"].unique())
 selected_district = st.sidebar.selectbox("Select District", districts)
 
 # Filter Data
