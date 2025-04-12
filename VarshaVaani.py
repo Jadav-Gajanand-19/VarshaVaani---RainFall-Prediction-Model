@@ -18,7 +18,7 @@ st.title("🌧️ VarshVaani - Rainfall Prediction & Analysis App")
 
 # Sidebar - Region Selector
 st.sidebar.header("🌍 Region Selection")
-state_district_map = df.groupby("STATE_UT_NAME")["DISTRICT"].unique().to_dict()
+state_district_map = df.groupby("STATE/UT")["DISTRICT"].unique().to_dict()
 state = st.sidebar.selectbox("Select State", sorted(state_district_map.keys()))
 district = st.sidebar.selectbox("Select District", sorted(state_district_map[state]))
 
