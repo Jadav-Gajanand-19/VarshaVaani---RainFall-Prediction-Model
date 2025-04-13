@@ -51,7 +51,7 @@ with col3:
     pred_year = st.selectbox("Year", sorted(df["YEAR"].unique()))
 
 try:
-    model_rain = joblib.load("Rainfall_Prediction_model.pkl")
+    model_rain = joblib.load("Regressor_model_VarshaVaani.pkl")
 except Exception as e:
     st.error("🚫 Failed to load rainfall prediction model.")
     st.stop()
@@ -68,7 +68,7 @@ if st.button("🔍 Predict Rainfall"):
 st.markdown("## 🧠 Predict Dominant Weather Condition")
 
 try:
-    model_weather = joblib.load("Weather_Condition_Classifier.pkl")
+    model_weather = joblib.load("Classifier_model_VarshaVaani.pkl")
 except Exception as e:
     st.error("🚫 Failed to load weather classification model.")
     st.stop()
