@@ -1,70 +1,20 @@
+# Updated Streamlit app for year-wise rainfall & weather prediction
+
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import requests
-from streamlit.components.v1 import html
 import plotly.graph_objects as go
 import joblib
 
-# --- SETTINGS ---
-PEXELS_API_KEY = "cHLzVW6EUPDn1dI4MQ6PkCPtcEQFtXZve2uYdTmxY9HXy28ZbUToumsp"
-
-# --- FETCH PEXELS IMAGES ---
-def fetch_pexels_images(query, api_key, count=5):
-    headers = {"Authorization": api_key}
-    params = {"query": query, "per_page": count}
-    response = requests.get("https://api.pexels.com/v1/search", headers=headers, params=params)
-    if response.status_code == 200:
-        return [photo["src"]["landscape"] for photo in response.json()["photos"]]
-    else:
-        st.warning("⚠️ Failed to fetch images from Pexels")
-        return []
-
 # --- LOAD DATA ---
-df = pd.read_csv("District_Rainfall_Normal_0.csv")
+df = pd.read_csv("Yearwise_Weather_Data_With_Condition.csv")
 df.columns = df.columns.str.strip().str.upper()
 
 # --- PAGE CONFIG ---
 st.set_page_config(page_title="🌧️ VarshVaani - Rainfall Intelligence", layout="wide")
 
-# --- CUSTOM STYLES & ANIMATIONS ---
-st.markdown("""
-    <style>
-    body {
-        background: linear-gradient(135deg, #a8edea, #fed6e3);
-        animation: rain 10s linear infinite;
-    }
-    @keyframes rain {
-        0% { background-position: 0 0; }
-        100% { background-position: 1000px 1000px; }
-    }
-    .block-container {
-        padding: 2rem;
-    }
-    .rain-animation {
-        background: url('https://i.ibb.co/7yzjLBQ/rain.gif') repeat;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        z-index: -1;
-        opacity: 0.4;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
-# --- BACKGROUND SOUND ---
-html("""
-<audio autoplay loop>
-  <source src="https://www.fesliyanstudios.com/play-mp3/387" type="audio/mp3">
-</audio>
-""", height=0)
-
-st.markdown("<div class='rain-animation'></div>", unsafe_allow_html=True)
-
 st.title("🌧️ VarshVaani - Rainfall Intelligence Dashboard")
-st.markdown("### 📊 Predict historical monthly rainfall trends by location")
+st.markdown("### 📊 Explore year-wise rainfall and weather trends by location")
 
 # --- LOCATION FILTERS ---
 st.sidebar.header("🗺️ Select Location")
@@ -75,100 +25,64 @@ selected_district = st.sidebar.selectbox("Select District", districts)
 
 filtered = df[(df["STATE/UT"] == selected_state) & (df["DISTRICT"] == selected_district)]
 
-st.subheader(f"📍 Rainfall Data for {selected_district}, {selected_state}")
+st.subheader(f"📍 Rainfall & Weather Trends for {selected_district}, {selected_state}")
 
-# --- IMAGE GALLERY ---
-image_urls = fetch_pexels_images(f"{selected_district} {selected_state} India weather", PEXELS_API_KEY)
-
-if image_urls:
-    carousel_html = f"""
-    <div id="carouselExampleIndicators" class="carousel slide" data-bs-ride="carousel" style="max-width:800px;margin:auto">
-      <div class="carousel-inner">
-        {"".join([f'<div class="carousel-item {"active" if i == 0 else ""}"><img src="{img}" class="d-block w-100" alt="Image"></div>' for i, img in enumerate(image_urls)])}
-      </div>
-      <button class="carousel-control-prev" type="button" data-bs-target="#carouselExampleIndicators" data-bs-slide="prev">
-        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-      </button>
-      <button class="carousel-control-next" type="button" data-bs-target="#carouselExampleIndicators" data-bs-slide="next">
-        <span class="carousel-control-next-icon" aria-hidden="true"></span>
-      </button>
-    </div>
-
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    """
-    html(carousel_html, height=450)
-else:
-    st.image("https://source.unsplash.com/800x400/?rain", caption="Weather View", use_column_width=True)
-
-# --- MONTHLY RAINFALL ---
-monthly_cols = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
-monthly_values = filtered[monthly_cols].mean().round(2)
-rainfall_df = pd.DataFrame({"Month": monthly_cols, "Rainfall (mm)": monthly_values.values})
-
-fig = go.Figure()
-fig.add_trace(go.Bar(
-    x=rainfall_df["Month"],
-    y=rainfall_df["Rainfall (mm)"],
-    marker=dict(color=rainfall_df["Rainfall (mm)"], colorscale='Viridis'),
-    name='Rainfall',
-))
-fig.add_trace(go.Scatter(
-    x=rainfall_df["Month"],
-    y=rainfall_df["Rainfall (mm)"],
-    mode='lines+markers',
-    line=dict(color='black', dash='dash'),
-    name='Trend'
-))
-fig.update_layout(
-    title="🌈 Average Monthly Rainfall with Trend Line",
-    template="plotly_dark",
-    paper_bgcolor='rgba(0,0,0,0)',
-    plot_bgcolor='rgba(0,0,0,0)',
-    scene=dict(zaxis_title='Rainfall (mm)')
-)
+# --- RAINFALL TREND ---
+fig = px.line(filtered, x="YEAR", y="RAINFALL (MM)", title="📈 Annual Rainfall Trend",
+              markers=True, template="plotly_dark")
+fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
 st.plotly_chart(fig, use_container_width=True)
 
-# --- EXPORT OPTION ---
-st.download_button(
-    label="📥 Download Graph Data",
-    data=rainfall_df.to_csv(index=False).encode('utf-8'),
-    file_name="rainfall_data.csv",
-    mime="text/csv"
-)
-
-# --- TOTAL ANNUAL RAINFALL ---
-total_rainfall = monthly_values.sum()
-st.metric("🌧️ Average Total Annual Rainfall", f"{total_rainfall:.2f} mm")
+# --- WEATHER CONDITION DISTRIBUTION ---
+condition_counts = filtered["WEATHER CONDITION"].value_counts().reset_index()
+condition_counts.columns = ["Condition", "Count"]
+fig2 = px.bar(condition_counts, x="Condition", y="Count", title="🌤️ Weather Condition Distribution",
+              template="plotly_dark")
+st.plotly_chart(fig2, use_container_width=True)
 
 # --- RAINFALL PREDICTION ---
 st.markdown("## 🔮 Predict Future Rainfall")
-st.markdown("Use the model to predict rainfall for a selected district and month.")
-
 col1, col2, col3 = st.columns(3)
 with col1:
     pred_state = st.selectbox("State (for prediction)", states)
 with col2:
     pred_district = st.selectbox("District", sorted(df[df["STATE/UT"] == pred_state]["DISTRICT"].unique()))
 with col3:
-    pred_month = st.selectbox("Month", monthly_cols)
+    pred_year = st.selectbox("Year", sorted(df["YEAR"].unique()))
 
 try:
-    model = joblib.load("Rainfall_Prediction_model.pkl")
+    model_rain = joblib.load("Rainfall_Prediction_model.pkl")
 except Exception as e:
-    st.error("🚫 Failed to load prediction model. Check file format or re-upload.")
+    st.error("🚫 Failed to load rainfall prediction model.")
     st.stop()
 
 if st.button("🔍 Predict Rainfall"):
     try:
-        input_df = pd.DataFrame([[pred_state, pred_district, pred_month]], columns=["STATE", "DISTRICT", "MONTH"])
-        prediction = model.predict(input_df)[0]
-        st.success(f"🌤️ Predicted Rainfall in **{pred_district}, {pred_state}** for **{pred_month}**: **{prediction:.2f} mm**")
+        input_df = pd.DataFrame([[pred_state, pred_district, pred_year]], columns=["STATE/UT", "DISTRICT", "YEAR"])
+        prediction = model_rain.predict(input_df)[0]
+        st.success(f"🌤️ Predicted Rainfall in **{pred_district}, {pred_state}** for **{pred_year}**: **{prediction:.2f} mm**")
     except Exception as e:
         st.error(f"❌ Prediction failed: {e}")
 
+# --- WEATHER CONDITION CLASSIFICATION ---
+st.markdown("## 🧠 Predict Dominant Weather Condition")
+
+try:
+    model_weather = joblib.load("Weather_Condition_Classifier.pkl")
+except Exception as e:
+    st.error("🚫 Failed to load weather classification model.")
+    st.stop()
+
+if st.button("🌀 Predict Weather Condition"):
+    try:
+        input_df = pd.DataFrame([[pred_state, pred_district, pred_year]], columns=["STATE/UT", "DISTRICT", "YEAR"])
+        weather_pred = model_weather.predict(input_df)[0]
+        st.info(f"🌦️ Predicted dominant weather condition: **{weather_pred}**")
+    except Exception as e:
+        st.error(f"❌ Classification failed: {e}")
+
 # --- FOOTER ---
 st.markdown("---")
-st.markdown("💡 *Powered by historical data, 3D visuals, and ambient rain from Pexels & open sources*")
+st.markdown("💡 *Powered by enriched climate data and machine learning models for rainfall & weather forecasting*")
 
 
